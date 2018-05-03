@@ -1,4 +1,3 @@
-# In [1]:
 import numpy as np
 import pandas as pd
 import math
@@ -16,18 +15,6 @@ import gzip
 import time
 import re
 
-initYear = 1940
-now = datetime.now()
-today = now.today()
-yearToday = now.today().year
-
-startProcessingTime = time.time()
-
-dfs = []
-for year in range(initYear, yearToday):
-    dfs.append(pd.read_csv('scraped_movies/top_movies_of_%d.csv' %
-                           year, encoding='cp1252'))
-
 
 def cleanTitle(title):
     matchObject = re.match(r"(.*?) (?:\(I+\) )?\(([0-9]{4})", title)
@@ -36,24 +23,6 @@ def cleanTitle(title):
 
 def addSimpleTitle(df):
     return df.assign(simpleTitle=df.title.apply(cleanTitle))
-
-
-movie_data = pd.concat(dfs)[["IMDbId", "title", "release_year"]]
-movie_data_complete = addSimpleTitle(movie_data)
-
-# In [3]:
-dfs = []
-for year in range(initYear, yearToday):
-    dfs.append(pd.read_csv(
-        'scraped_movies/keywords_for_top_movies_of_%d.csv' % year, encoding='cp1252'))
-keywords = pd.concat(dfs)
-
-# In [4]:
-movie_data.index = range(len(movie_data))
-keywords.index = range(len(keywords))
-
-# In [24]:
-# Throwing the whole process into a little method
 
 
 def make_matrix(df, countvectoriser):
@@ -66,31 +35,56 @@ def make_matrix(df, countvectoriser):
     return matrix, movies
 
 
-# In [25]:
-vlad = CountVectorizer(tokenizer=lambda x: x.split('|'), min_df=10)
-matrix, words = make_matrix(keywords, vlad)
-
-# In [26]:
-shrinky = NMF(n_components=100)
-
-shrunk_100 = shrinky.fit_transform(matrix.toarray())
-
-
 def saveToFileAndCompress(object, filename):
     file = gzip.GzipFile(filename, 'wb')
     file.write(pickle.dumps(object))
     file.close()
 
 
-fileName = "hanibalVectorModel-" + today.strftime("%d-%m-%Y") + ".gz"
+def create():
+    initYear = 1940
+    now = datetime.now()
+    today = now.today()
+    yearToday = now.today().year
 
-indexFileName = "hanibalVectorIndex-" + today.strftime("%d-%m-%Y") + ".gz"
+    startProcessingTime = time.time()
 
-saveToFileAndCompress(shrunk_100, fileName)
+    dfs = []
+    for year in range(initYear, yearToday):
+        dfs.append(pd.read_csv('scraped_movies/top_movies_of_%d.csv' %
+                            year, encoding='utf-8'))
 
-saveToFileAndCompress(movie_data_complete, indexFileName)
+    movie_data = pd.concat(dfs)[["IMDbId", "title", "release_year"]]
+    movie_data_complete = addSimpleTitle(movie_data)
 
-endProcessingTime = time.time()
-elapsedTimeInSeconds = endProcessingTime - startProcessingTime
+    dfs = []
+    for year in range(initYear, yearToday):
+        dfs.append(pd.read_csv(
+            'scraped_movies/keywords_for_top_movies_of_%d.csv' % year, encoding='utf-8'))
+    keywords = pd.concat(dfs)
 
-print("All completed in: %ss" % elapsedTimeInSeconds)
+    movie_data.index = range(len(movie_data))
+    keywords.index = range(len(keywords))
+
+    vlad = CountVectorizer(tokenizer=lambda x: x.split('|'), min_df=10)
+    matrix, words = make_matrix(keywords, vlad)
+
+    shrinky = NMF(n_components=100)
+
+    shrunk_100 = shrinky.fit_transform(matrix.toarray())
+
+    fileName = "hanibalVectorModel-" + today.strftime("%d-%m-%Y") + ".gz"
+
+    indexFileName = "hanibalVectorIndex-" + today.strftime("%d-%m-%Y") + ".gz"
+
+    saveToFileAndCompress(shrunk_100, fileName)
+
+    saveToFileAndCompress(movie_data_complete, indexFileName)
+
+    endProcessingTime = time.time()
+    elapsedTimeInSeconds = endProcessingTime - startProcessingTime
+
+    print("All completed in: %ss" % elapsedTimeInSeconds)
+
+if __name__ == '__main__':
+    create()

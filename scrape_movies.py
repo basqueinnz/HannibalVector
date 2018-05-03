@@ -3,19 +3,24 @@ import argparse
 import urllib.request
 import pandas as pd
 import logging
+from multiprocessing.dummy import Pool  # This is a thread-based Pool
+from multiprocessing import cpu_count
 
 
-PARSER = argparse.ArgumentParser(description='This tool will create csv files of movies scraped from IMDb.com')
+def get_input_from_user():
+    PARSER = argparse.ArgumentParser(description='This tool will create csv files of movies scraped from IMDb.com')
 
-PARSER.add_argument('start', help='Year to start scraping from', type=int)
-PARSER.add_argument('end', help='Year to start scraping at', type=int)
+    PARSER.add_argument('start', help='Year to start scraping from', type=int)
+    PARSER.add_argument('end', help='Year to start scraping at', type=int)
 
-ARGS = PARSER.parse_args()
+    ARGS = PARSER.parse_args()
 
-years = range(ARGS.start, ARGS.end + 1)
+    years = range(ARGS.start, ARGS.end + 1)
 
-logging.basicConfig(level=logging.INFO)
-logging.info('Scraping data for top movies from %d to %d.' % (ARGS.start, ARGS.end + 1))
+    logging.basicConfig(level=logging.INFO)
+    logging.info('Scraping data for top movies from %d to %d.' % (ARGS.start, ARGS.end + 1))
+    
+    return years
 
 
 def movie_data_from_soup(movie, year):
@@ -58,20 +63,26 @@ def build_url(year, page):
 def write_to_csv(movies_list, year):
     df = pd.DataFrame(movies_list)
     file_name = 'scraped_movies/top_movies_of_%d.csv' % year
-    df.to_csv(file_name, index=False)
+    df.to_csv(file_name, index=False, encoding="utf-8")
     logging.info('Wrote the following file: %s' % file_name)
 
+def scrap_year(year):
+    movies_list = []
+    for page in [1, 2, 3, 4]: # Each page has 50 movies
+        logging.info('Fetching year %d page %d' % (year, page))
+        url = build_url(year, page)
+        with urllib.request.urlopen(url) as response:
+            html = response.read()
+        soup = bs4.BeautifulSoup(html, "lxml", from_encoding="utf-8")
+        movies = soup.findAll("div", {"class": "lister-item mode-advanced"})
+        for movie in movies:
+            movies_list.append(movie_data_from_soup(movie, year))
+    write_to_csv(movies_list, year)
 
 if __name__ == '__main__':
-    for year in years:
-        movies_list = []
-        for page in [1, 2]:
-            logging.info('Fetching year %d page %d' % (year, page))
-            url = build_url(year, page)
-            with urllib.request.urlopen(url) as response:
-                html = response.read()
-            soup = bs4.BeautifulSoup(html, "lxml")
-            movies = soup.findAll("div", {"class": "lister-item mode-advanced"})
-            for movie in movies:
-                movies_list.append(movie_data_from_soup(movie, year))
-        write_to_csv(movies_list, year)
+    years = get_input_from_user()
+
+    threadCount = cpu_count() * 2
+    print("Creating {} threads to parallelize" % str(threadCount))
+    pool = Pool(threadCount)
+    pool.map(scrap_year, years)
