@@ -23,6 +23,8 @@ def scrap_last_year_and_create_model():
 
     measure_and_print_elapsed_time(lambda: scrape_movies.scrap_year(yearToday), "- Scrapping movies")
 
+    measure_and_print_elapsed_time(lambda: scrape_keywords.scrap_year(yearToday), "- Scrapping movie keywords")
+
     measure_and_print_elapsed_time(create_model.create, "- Starting model creation, this would take few minutes.")
 
 
