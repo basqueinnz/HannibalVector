@@ -55,6 +55,6 @@ if __name__ == '__main__':
     years = get_input_from_user()
 
     threadCount = cpu_count() * 2
-    print("Creating {} threads to parallelize" % str(threadCount))
+    logging.debug("Creating {} threads to parallelize" % str(threadCount))
     pool = Pool(threadCount)
     pool.map(scrap_year, years)

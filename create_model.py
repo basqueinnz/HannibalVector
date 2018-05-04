@@ -14,6 +14,7 @@ import pickle
 import gzip
 import time
 import re
+import logging
 
 
 def cleanTitle(title):
@@ -84,7 +85,7 @@ def create():
     endProcessingTime = time.time()
     elapsedTimeInSeconds = endProcessingTime - startProcessingTime
 
-    print("All completed in: %ss" % elapsedTimeInSeconds)
+    logging.info("Model creation completed in: %ss" % elapsedTimeInSeconds)
 
 if __name__ == '__main__':
     create()
