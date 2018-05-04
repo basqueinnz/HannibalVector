@@ -31,22 +31,34 @@ def write_to_csv(movies_list, year):
     df.to_csv(file_name, index=False, encoding="utf-8")
     logging.info('Wrote the following file: %s' % file_name)
 
+def scrap_keywords_from_imd_with_id(IMDbId):
+    logging.info('Fetching keywords for %s' % IMDbId)
+
+    url = 'http://www.imdb.com/title/%s/keywords' % IMDbId
+    with urllib.request.urlopen(url) as response:
+        html = response.read()
+    soup = bs4.BeautifulSoup(html, "lxml", from_encoding="utf-8")
+    keyword_tags = soup.find_all(attrs={'class': "soda sodavote"})
+    keywords = '|'.join([i['data-item-keyword'] for i in keyword_tags])
+    movie_data = {'IMDbId': IMDbId,
+                    'keywords': keywords}
+    return movie_data
+
 
 def scrap_year(year):
     movies_file_name = './scraped_movies/top_movies_of_%d.csv'
     movies = pd.read_csv(movies_file_name % year, encoding = "utf-8")
     keywords_list = []
-    for IMDbId in movies.IMDbId:
-        logging.info('Fetching keywords for %s' % IMDbId)
-        url = 'http://www.imdb.com/title/%s/keywords' % IMDbId
-        with urllib.request.urlopen(url) as response:
-            html = response.read()
-        soup = bs4.BeautifulSoup(html, "lxml", from_encoding="utf-8")
-        keyword_tags = soup.find_all(attrs={'class': "soda sodavote"})
-        keywords = '|'.join([i['data-item-keyword'] for i in keyword_tags])
-        movie_data = {'IMDbId': IMDbId,
-                        'keywords': keywords}
-        keywords_list.append(movie_data)
+
+    concurrentCalls = 15
+    totalAmountOfIterations = round(len(movies.IMDbId)/concurrentCalls)
+    for iteration in range(totalAmountOfIterations):
+        IMDbIds = movies[iteration * concurrentCalls:(iteration + 1) * concurrentCalls].IMDbId
+        logging.debug("Creating {} threads to parallelize" % str(threadCount))
+        pool = Pool(concurrentCalls)
+        movies_data = pool.map(scrap_keywords_from_imd_with_id, IMDbIds)
+        keywords_list.extend(movies_data)
+
     write_to_csv(keywords_list, year)
     logging.info('Wrote file for %d' % year)
 

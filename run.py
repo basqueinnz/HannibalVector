@@ -7,7 +7,6 @@ import os.path
 from multiprocessing.dummy import Pool  # This is a thread-based Pool
 from multiprocessing import cpu_count
 from random import randint
-
 import boto3
 from boto3.s3.transfer import S3Transfer
 
